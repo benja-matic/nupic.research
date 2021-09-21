@@ -37,6 +37,12 @@ from transformers import (
     BertTokenizer,
     BertTokenizerFast,
 )
+from transformers.modeling_utils import (
+    PoolerAnswerClass,
+    PoolerEndLogits,
+    PoolerStartLogits,
+)
+
 from transformers.models.bert.modeling_bert import BertOnlyMLMHead
 
 # This is the dict of the `models` module. Anything imported from `models`
@@ -318,14 +324,134 @@ def create_question_answering_class(bert_cls, name_prefix):
             # Otherwise, the model will be defined twice.
             BertPreTrainedModel.__init__(self, config)
 
-            self.num_labels = config.num_labels
+            self.do_beam_search = config.beam_searh
 
-            # Replace `BertModel` with SparseBertModel.
-            self.bert = bert_cls(config)
-            self.dropout = nn.Dropout(config.hidden_dropout_prob)
-            self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
+            if config.beam_search:
+                self.start_n_top = config.start_n_top
+                self.end_n_top = config.end_n_top
 
-            self.init_weights()
+                self.transformer = bert_cls(config)
+                self.start_logits = PoolerStartLogits(config)
+                self.end_logits = PoolerEndLogits(config)
+                self.answer_class = PoolerAnswerClass(config)
+
+                self.init_weights()
+
+            else:
+                self.num_labels = config.num_labels
+
+                # Replace `BertModel` with SparseBertModel.
+                self.bert = bert_cls(config)
+                self.dropout = nn.Dropout(config.hidden_dropout_prob)
+                self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
+
+                self.init_weights()
+
+        def forward(many_arguments):
+
+            # copied from https://huggingface.co/transformers/_modules/transformers/models/xlnet/modeling_xlnet.html#XLNetForQuestionAnsweringSimple
+            return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+            transformer_outputs = self.transformer(
+                input_ids,
+                attention_mask=attention_mask,
+                mems=mems,
+                perm_mask=perm_mask,
+                target_mapping=target_mapping,
+                token_type_ids=token_type_ids,
+                input_mask=input_mask,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                use_mems=use_mems,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+                **kwargs,
+            )
+            hidden_states = transformer_outputs[0]
+            start_logits = self.start_logits(hidden_states, p_mask=p_mask)
+
+            outputs = transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
+
+            if start_positions is not None and end_positions is not None:
+                # If we are on multi-GPU, let's remove the dimension added by batch splitting
+                for x in (start_positions, end_positions, cls_index, is_impossible):
+                    if x is not None and x.dim() > 1:
+                        x.squeeze_(-1)
+
+                # during training, compute the end logits based on the ground truth of the start position
+                end_logits = self.end_logits(hidden_states, start_positions=start_positions, p_mask=p_mask)
+
+                loss_fct = CrossEntropyLoss()
+                start_loss = loss_fct(start_logits, start_positions)
+                end_loss = loss_fct(end_logits, end_positions)
+                total_loss = (start_loss + end_loss) / 2
+
+                if cls_index is not None and is_impossible is not None:
+                    # Predict answerability from the representation of CLS and START
+                    cls_logits = self.answer_class(hidden_states, start_positions=start_positions, cls_index=cls_index)
+                    loss_fct_cls = nn.BCEWithLogitsLoss()
+                    cls_loss = loss_fct_cls(cls_logits, is_impossible)
+
+                    # note(zhiliny): by default multiply the loss by 0.5 so that the scale is comparable to start_loss and end_loss
+                    total_loss += cls_loss * 0.5
+
+                if not return_dict:
+                    return (total_loss,) + transformer_outputs[1:]
+                else:
+                    return XLNetForQuestionAnsweringOutput(
+                        loss=total_loss,
+                        mems=transformer_outputs.mems,
+                        hidden_states=transformer_outputs.hidden_states,
+                        attentions=transformer_outputs.attentions,
+                    )
+
+            else:
+                # during inference, compute the end logits based on beam search
+                bsz, slen, hsz = hidden_states.size()
+                start_log_probs = nn.functional.softmax(start_logits, dim=-1)  # shape (bsz, slen)
+
+                start_top_log_probs, start_top_index = torch.topk(
+                    start_log_probs, self.start_n_top, dim=-1
+                )  # shape (bsz, start_n_top)
+                start_top_index_exp = start_top_index.unsqueeze(-1).expand(-1, -1, hsz)  # shape (bsz, start_n_top, hsz)
+                start_states = torch.gather(hidden_states, -2, start_top_index_exp)  # shape (bsz, start_n_top, hsz)
+                start_states = start_states.unsqueeze(1).expand(-1, slen, -1, -1)  # shape (bsz, slen, start_n_top, hsz)
+
+                hidden_states_expanded = hidden_states.unsqueeze(2).expand_as(
+                    start_states
+                )  # shape (bsz, slen, start_n_top, hsz)
+                p_mask = p_mask.unsqueeze(-1) if p_mask is not None else None
+                end_logits = self.end_logits(hidden_states_expanded, start_states=start_states, p_mask=p_mask)
+                end_log_probs = nn.functional.softmax(end_logits, dim=1)  # shape (bsz, slen, start_n_top)
+
+                end_top_log_probs, end_top_index = torch.topk(
+                    end_log_probs, self.end_n_top, dim=1
+                )  # shape (bsz, end_n_top, start_n_top)
+                end_top_log_probs = end_top_log_probs.view(-1, self.start_n_top * self.end_n_top)
+                end_top_index = end_top_index.view(-1, self.start_n_top * self.end_n_top)
+
+                start_states = torch.einsum(
+                    "blh,bl->bh", hidden_states, start_log_probs
+                )  # get the representation of START as weighted sum of hidden states
+                cls_logits = self.answer_class(
+                    hidden_states, start_states=start_states, cls_index=cls_index
+                )  # Shape (batch size,): one single `cls_logits` for each sample
+
+                if not return_dict:
+                    outputs = (start_top_log_probs, start_top_index, end_top_log_probs, end_top_index, cls_logits)
+                    return outputs + transformer_outputs[1:]
+                else:
+                    return XLNetForQuestionAnsweringOutput(
+                        start_top_log_probs=start_top_log_probs,
+                        start_top_index=start_top_index,
+                        end_top_log_probs=end_top_log_probs,
+                        end_top_index=end_top_index,
+                        cls_logits=cls_logits,
+                        mems=transformer_outputs.mems,
+                        hidden_states=transformer_outputs.hidden_states,
+                        attentions=transformer_outputs.attentions,
+                    )
 
     # Rename new model class and format docstring.
     new_cls = NewBertForQuestionAnswering
