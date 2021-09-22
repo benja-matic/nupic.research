@@ -84,33 +84,18 @@ debug_squad_v1_no_beam.update(
     max_steps=500,
 )
 
-debug_squad_v1_beam = deepcopy(debug_squad_v1_no_beam)
-debug_squad_v1_beam.update(
-    beam_search=True,
-    model_name_or_path="xlnet-large-cased",
-    per_device_eval_batch_size=4,
-    per_device_train_batch_size=4,
-)
-
-debug_squad_v2_no_beam = deepcopy(debug_squad_v1_no_beam)
-debug_squad_v2_no_beam.update(
-    dataset_name="squad_v2",
-    dataset_config_name="squad_v2",
-    task_name="squad",
-    version_2_with_negative=True,
-)
-
-debug_squad_v2_beam = deepcopy(debug_squad_v2_no_beam)
-debug_squad_v2_beam.update(
-    beam_search=True,
-    model_name_or_path="xlnet-large-cased",
-    per_device_eval_batch_size=4,
-    per_device_train_batch_size=4,
-)
+steps_1M = 1_000_000 // bert_squad_replication["per_device_train_batch_size"]
+steps_100k = steps_1M // 10
 
 bert_100k_squad = deepcopy(bert_squad_replication)
 bert_100k_squad.update(
-    model_name_or_path="/mnt/efs/results/pretrained-models/transformers-local/bert_100k"
+    model_name_or_path="/mnt/efs/results/pretrained-models/transformers-local/bert_100k",
+    trainer_callbacks=[
+        TrackEvalMetrics()],
+    max_steps=steps_1M,
+    eval_steps=steps_100k,
+    save_steps=steps_100k,
+    logging_steps=steps_100k,
 )
 
 
@@ -119,8 +104,5 @@ CONFIGS = dict(
     debug_bert_squad_base=debug_bert_squad_base,
     bert_squad_replication=bert_squad_replication,
     debug_squad_v1_no_beam=debug_squad_v1_no_beam,
-    debug_squad_v1_beam=debug_squad_v1_beam,
-    debug_squad_v2_no_beam=debug_squad_v2_no_beam,
-    debug_squad_v2_beam=debug_squad_v2_beam,
     bert_100k_squad=bert_100k_squad,
 )
