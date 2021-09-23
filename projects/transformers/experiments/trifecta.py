@@ -423,6 +423,9 @@ squad_trifecta_100k.update(
     trainer_callbacks=[
         RezeroWeightsCallback(),
         TrackEvalMetrics()],
+    # lr guessed by comparing to qnli which has similar size
+    # bert_base uses 3e-5 and trifectas can usually train at higher lr
+    learning_rate=5e-5
 )
 
 squad_trifecta_85_100k = deepcopy(squad_trifecta_100k)

@@ -84,18 +84,21 @@ debug_squad_v1_no_beam.update(
     max_steps=500,
 )
 
-steps_1M = 1_000_000 // bert_squad_replication["per_device_train_batch_size"]
-steps_100k = steps_1M // 10
 
+# Neural magic trains for 30 epochs on squad which is ~90K training samples
+# = 2.7M samples. Our models are pretrained with 100k steps with a batch size
+# of 8 = 800K samples. 2.7M - 800K ~ 1.9M, 1.9M // batch size of 12 = 
+# a budget of~ 150K training steps allowed on squad for total training steps
+# to be similar
 bert_100k_squad = deepcopy(bert_squad_replication)
 bert_100k_squad.update(
     model_name_or_path="/mnt/efs/results/pretrained-models/transformers-local/bert_100k",
     trainer_callbacks=[
         TrackEvalMetrics()],
-    max_steps=steps_1M,
-    eval_steps=steps_100k,
-    save_steps=steps_100k,
-    logging_steps=steps_100k,
+    max_steps=150_000,  # just over 20 epochs
+    eval_steps=10_000,
+    save_steps=10_000,
+    logging_steps=10_000,
 )
 
 
