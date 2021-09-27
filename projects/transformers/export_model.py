@@ -29,17 +29,32 @@ Not tested for modified sparse models.
 import argparse
 import os
 
-from transformers import AutoModelForMaskedLM
+from transformers import (
+    AutoModelForMaskedLM,
+    AutoModelForSequenceClassification,
+    AutoModelForQuestionAnswering
+)
 
 # Import models. This will update Transformer's model mappings so that custom models can
 # be loaded via AutoModelForMaskedLM.
 import models  # noqa F401
 
 
-def save_pretrained(checkpoint_folder, destination_folder, model_name):
+def save_pretrained(checkpoint_folder, destination_folder, model_name, model_type):
     if not model_name:
         model_name = os.path.split(checkpoint_folder)[-1]
-    model = AutoModelForMaskedLM.from_pretrained(checkpoint_folder)
+
+    if model_type == "PRETRAINING":
+        model = AutoModelForMaskedLM.from_pretrained(checkpoint_folder)
+    elif model_type == "GLUE":
+        model = AutoModelForSequenceClassification(checkpoint_folder)
+    elif model_type == "SQUAD":
+        model = AutoModelForQuestionAnswering(checkpoint_folder)
+    else:
+        print(f"Unknown model type specified: {model_type}")
+        print("model_type must be one of [PRETRAINING, GLUE, SQUAD]")
+        raise ValueError
+
     print("Saving with model type:", model.__class__.__name__)
     destination_file_path = os.path.join(destination_folder, model_name)
     model.save_pretrained(destination_file_path)
@@ -56,5 +71,10 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str,
                         default=None,
                         help="Name of the model to save")
+    parser.add_argument("--model_type", type=str, default="PRETRAINING",
+                        choices=["PRETRAINING", "GLUE", "SQUAD"],
+                        help="Save a pretraining model (AutoModelForMaskedLM) or "
+                             "a GLUE model (AutoModelForSequenceClassification) "
+                             "or a SQUAD model (AutoModelForQuestionAnswering)")
     args = parser.parse_args()
     save_pretrained(**args.__dict__)
