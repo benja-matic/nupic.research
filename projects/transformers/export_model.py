@@ -69,7 +69,7 @@ def export_model(checkpoint_folder, destination_folder, model_name, model_type):
     save_model(model, destination_folder, model_name)
 
 
-def export_all_glue(parent_folder, destination_folder, model_name, model_type):
+def export_all_glue(checkpoint_folder, destination_folder, model_name, model_type):
     """
     Simply loops over export_model once for each finetuning task.
 
@@ -81,14 +81,17 @@ def export_all_glue(parent_folder, destination_folder, model_name, model_type):
     will need to be called once per config.
     """
 
+    import pdb
+    pdb.set_trace()
+
     msg_1 = f"model_type must be GLUE, but you specified {model_type}"
     assert model_type == "GLUE", msg_1
 
     # Get all task subdirectories from parent folder
-    sub_dirs = os.listdir(parent_folder)
+    sub_dirs = os.listdir(checkpoint_folder)
     task_dirs = []
     for sub_dir in sub_dirs:
-        full_dir = os.path.join(parent_folder, sub_dir)
+        full_dir = os.path.join(checkpoint_folder, sub_dir)
         if os.path.isdir(full_dir):
             task_dirs.append(full_dir)
 
@@ -111,6 +114,14 @@ def export_all_glue(parent_folder, destination_folder, model_name, model_type):
         export_model(run_dir, destination_folder, task_model_name, model_type)
 
 
+def export(checkpoint_folder, destination_folder, model_name, model_type, all_glue):
+    """Driver for exporting single model or all glue models"""
+    if all_glue:
+        export_all_glue(checkpoint_folder, destination_folder, model_name, model_type)
+    else:
+        export_model(checkpoint_folder, destination_folder, model_name, model_type)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("checkpoint_folder", type=str,
@@ -131,10 +142,4 @@ if __name__ == "__main__":
                              "directory, with subdirectories for each task. all-glue "
                              "indicates that this will call ")
     args = parser.parse_args()
-
-    # export a model for each available finetuning task
-    if args.all_glue:
-        export_all_glue(**args.__dict__)
-    # save a single model
-    else:
-        export_model(**args.__dict__)
+    export(**args.__dict__)
