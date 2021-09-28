@@ -58,9 +58,9 @@ def export_model(checkpoint_folder, destination_folder, model_name, model_type):
     if model_type == "PRETRAINING":
         model = AutoModelForMaskedLM.from_pretrained(checkpoint_folder)
     elif model_type == "GLUE":
-        model = AutoModelForSequenceClassification(checkpoint_folder)
+        model = AutoModelForSequenceClassification.from_pretrained(checkpoint_folder)
     elif model_type == "SQUAD":
-        model = AutoModelForQuestionAnswering(checkpoint_folder)
+        model = AutoModelForQuestionAnswering.from_pretrained(checkpoint_folder)
     else:
         print(f"Unknown model type specified: {model_type}")
         print("model_type must be one of [PRETRAINING, GLUE, SQUAD]")
@@ -75,14 +75,17 @@ def export_all_glue(checkpoint_folder, destination_folder, model_name, model_typ
 
     This function is for convenience, so you can run this script once for all 9 GLUE
     tasks, instead of 9 separate times. Note, this assumes there is a single run_*
-    directory under each task directory with the best model saved there. If a run broke
-    for some reason and the results for a single pretrained model are distributed under
-    multiple configs (e.g. trifecta_85_hpchase, trifecta_85_hpchase_follow_up), this
-    will need to be called once per config.
+    directory under each task directory with the best model saved there.
+    
+    Note regarding cleanup runs:
+    If a run broke for some reason and the results for a single pretrained model are
+    distributed under multiple configs
+    (e.g. trifecta_85_hpchase, trifecta_85_hpchase_follow_up), this will need to be
+    called once per config. This should also be called on the base config first, and
+    on follow-up configs second in case a task is present in both, but there was a bug
+    fix for the follow up. This will ensure that the model with the bug fix is used in
+    the export.
     """
-
-    import pdb
-    pdb.set_trace()
 
     msg_1 = f"model_type must be GLUE, but you specified {model_type}"
     assert model_type == "GLUE", msg_1
@@ -97,12 +100,16 @@ def export_all_glue(checkpoint_folder, destination_folder, model_name, model_typ
 
     # Ensure there is only one run subdirectory per task, and export one
     # model for each task
+    exported_tasks = []
     for task_dir in task_dirs:
         task_sub_dirs = os.listdir(task_dir)
         run_dirs = []
+        if len(task_sub_dirs) == 0:
+            print(f"No task data availabel for {task_dir}, skipping to next.")
+            continue
         for task_sub_dir in task_sub_dirs:
             run_full_dir = os.path.join(task_dir, task_sub_dir)
-            if os.path.isdir(task_sub_dir):
+            if os.path.isdir(run_full_dir):
                 run_dirs.append(run_full_dir)
 
         msg_2 = "This function assumes there is a single run directory per task. "
@@ -110,8 +117,26 @@ def export_all_glue(checkpoint_folder, destination_folder, model_name, model_typ
         assert len(run_dirs) == 1, msg_2
         run_dir = run_dirs[0]
 
-        task_model_name = "_".join(model_name, task_dir)
+        task_name = os.path.basename(task_dir)
+        task_model_name = "_".join([model_name, task_name])
+        print(f"preparing to export the following model: {task_model_name}")
         export_model(run_dir, destination_folder, task_model_name, model_type)
+        exported_tasks.append(task_dir)
+
+    # Check that a model was exported for each task and issue a warning of not
+    exported_task_set = set(exported_tasks)
+    task_dir_set = set(task_dirs)
+    not_exported = list(task_dir_set.difference(exported_task_set))
+    if len(not_exported) == 0:
+        print(f"Models for all available tasks successfully exported:")
+        for task in task_dirs:
+            print(os.path.basename(task))
+
+    else:
+        print(f"The following tasks were not successfully exported:")
+        for task in not_exported:
+            print(os.path.basename(task))
+
 
 
 def export(checkpoint_folder, destination_folder, model_name, model_type, all_glue):

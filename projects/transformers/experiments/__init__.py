@@ -35,6 +35,7 @@ from .gmp_bert import CONFIGS as GMP_BERT
 from .hpchase import CONFIGS as HPCHASE
 from .hpsearch import CONFIGS as HPSEARCH
 from .one_cycle_lr import CONFIGS as ONE_CYCLE_LR
+from .predictions import CONFIGS as PREDICTIONS
 from .profiler import CONFIGS as PROFILER
 from .regressions import CONFIGS as REGRESSIONS
 from .rigl_bert import CONFIGS as RIGL_BERT
@@ -64,6 +65,7 @@ CONFIGS.update(HPSEARCH)
 CONFIGS.update(HPCHASE)
 CONFIGS.update(GMP_BERT)
 CONFIGS.update(ONE_CYCLE_LR)
+CONFIGS.update(PREDICTIONS)
 CONFIGS.update(PROFILER)
 CONFIGS.update(REGRESSIONS)
 CONFIGS.update(RIGL_BERT)
