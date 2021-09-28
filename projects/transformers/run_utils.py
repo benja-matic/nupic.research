@@ -1888,10 +1888,15 @@ def get_best_run_and_link_best_predictions(training_args,
     set, then create a symlink between {task_name}_best.tsv and the test set
     predictions of the run with the best eval scores. (e.g. CoLA_best.tsv).
     """
+    # TODO
+    # symlinks might not sync properly to local machine, in which case may
+    # need to replace with shutil.copy or something
 
+    import pdb
+    pdb.set_trace()
     # get the filename with predictions from the best model
-    if not training_args.do_eval:
-        best_run = "run_0"
+    if (not training_args.do_eval) & (not training_args.do_train):
+        best_run = 0
     else:
         best_run = task_results.get_model_with_best_max()
     task_path = os.path.dirname(training_args.output_dir)
@@ -1910,18 +1915,19 @@ def get_best_run_and_link_best_predictions(training_args,
 
         # link task_best.tsv
         # If previous symlink exists, just delete and recreate
-        link_file_names = [GLUE_NAMES_PER_TASK[task_name] + "_best.tsv"]
+        mv_file_names = [GLUE_NAMES_PER_TASK[task_name] + ".tsv"]
         if task_name == "mnli":
-            link_file_names.append(
-                GLUE_NAMES_PER_TASK[task_name + "-mm"] + "_best.tsv")
+            mv_file_names.append(
+                GLUE_NAMES_PER_TASK[task_name + "-mm"] + ".tsv")
 
-        for idx, link_file_name in enumerate(link_file_names):
-            link_file_path = os.path.join(task_path, link_file_name)
-            if os.path.exists(link_file_path):
-                os.remove(link_file_path)
-            os.symlink(best_run_predictions[idx], link_file_path)
-            logging.info(f"best run predictions for {task_name} saved to "
-                         f"{link_file_path}")
+        for idx, mv_file_name in enumerate(mv_file_names):
+            mv_file_path = os.path.join(task_path, mv_file_name)
+            if os.path.exists(mv_file_path):
+                os.remove(mv_file_path)
+            shutil.move(best_run_predictions[idx], mv_file_path)
+            # os.symlink(best_run_predictions[idx], link_file_path)
+            logging.info(f"best run predictions for {task_name} moved to "
+                         f"{mv_file_path}")
 
     return str(best_run)
 
