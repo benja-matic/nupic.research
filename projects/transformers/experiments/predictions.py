@@ -22,9 +22,15 @@ import os
 import pathlib
 from copy import deepcopy
 
+from transformers import Trainer
+
+from callbacks import RezeroWeightsCallback, TrackEvalMetrics
+from trainer_mixins import MultiEvalSetsTrainerMixin
+
 from .hpchase import trifecta_80_hp_chase
 
-
+class MultiEvalSetTrainer(MultiEvalSetsTrainerMixin, Trainer):
+    pass
 # ---------
 # Trifecta models
 # ---------
@@ -53,6 +59,11 @@ trifecta_80_predict.update(
         mnli=dict(
             model_name_or_path="_".join([trifecta_80_finetuning_model_dir, "mnli"]),
             do_eval=False,
+            trainer_class=MultiEvalSetTrainer,
+            trainer_mixin_args=dict(
+                eval_sets=["validation_matched", "validation_mismatched"],
+                eval_prefixes=["eval", "eval_mm"],
+            ),
         ),
         qnli=dict(
             model_name_or_path="_".join([trifecta_80_finetuning_model_dir, "qnli"]),
@@ -167,7 +178,21 @@ trifecta_90_predict.update(
     )
 )
 
+trifecta_80_verify_eval = deepcopy(trifecta_80_predict)
+trifecta_80_verify_eval.update(
+    do_eval=True,
+    do_predict=False,
+    trainer_callbacks=[
+        RezeroWeightsCallback(),
+    ]
+)
+
+for key in trifecta_80_verify_eval["task_hyperparams"].keys():
+    trifecta_80_verify_eval["task_hyperparams"][key]["do_eval"]=True
+
+
 CONFIGS=dict(
+    trifecta_80_verify_eval=trifecta_80_verify_eval,
     trifecta_80_predict=trifecta_80_predict,
     trifecta_85_predict=trifecta_85_predict,
     trifecta_90_predict=trifecta_90_predict

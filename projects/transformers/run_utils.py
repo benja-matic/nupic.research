@@ -1366,6 +1366,9 @@ def evaluate_task_handler(trainer,
     """
     logging.info("*** Evaluate ***")
 
+    # import pdb
+    # pdb.set_trace()
+
     eval_results = {}
     tracked_metrics, metric_callback = check_for_callback(model_args, TrackEvalMetrics)
     task = data_args.task_name
@@ -1892,10 +1895,10 @@ def get_best_run_and_link_best_predictions(training_args,
     # symlinks might not sync properly to local machine, in which case may
     # need to replace with shutil.copy or something
 
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
     # get the filename with predictions from the best model
-    if (not training_args.do_eval) & (not training_args.do_train):
+    if not training_args.do_train:
         best_run = 0
     else:
         best_run = task_results.get_model_with_best_max()
