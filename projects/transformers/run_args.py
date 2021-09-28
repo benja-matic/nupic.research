@@ -25,7 +25,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import torch
 from transformers import MODEL_FOR_MASKED_LM_MAPPING, Trainer, TrainingArguments
 
-from run_utils import TASK_TO_KEYS
+from finetuning_constants import GLUE_NAMES, TASK_NAMES
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_MASKED_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
@@ -303,7 +303,7 @@ class DataTrainingArguments:
         default_factory=list,
         metadata={
             "help": "Allows running several tasks at once. "
-                    f"Available tasks: {', '.join(TASK_TO_KEYS.keys())}"
+                    f"Available tasks: {', '.join(TASK_NAMES)}"
         },
     )
     task_name: Optional[str] = field(
@@ -311,7 +311,7 @@ class DataTrainingArguments:
         metadata={
             "help": "The name of the task to train on."
                     "Option available for backwards compatibility with HF run script."
-                    f"Available tasks: {', '.join(TASK_TO_KEYS.keys())}"
+                    f"Available tasks: {', '.join(TASK_NAMES)}"
         },
     )
     override_finetuning_results: bool = field(
@@ -395,7 +395,7 @@ class DataTrainingArguments:
             )
         if self.task_name:
             if self.task_name.lower() == "glue":
-                self.task_names = list(TASK_TO_KEYS.keys())
+                self.task_names = list(GLUE_NAMES)
             else:
                 self.task_names = [self.task_name]
             self.task_name = None
@@ -406,9 +406,9 @@ class DataTrainingArguments:
             self.task_names = [t.lower() for t in self.task_names]
             for task_name in self.task_names:
                 # Checks if it is a valid task
-                if task_name not in TASK_TO_KEYS.keys():
+                if task_name not in TASK_NAMES:
                     raise ValueError(f"Unknown task {task_name}, you should pick one in"
-                                     ": " + ",".join(TASK_TO_KEYS.keys()))
+                                     ": " + ",".join(TASK_NAMES))
 
         # If no task is set, validates if a dataset is given
         elif (self.dataset_name is None and self.train_file is None

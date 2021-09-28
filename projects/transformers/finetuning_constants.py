@@ -22,6 +22,18 @@
 Constants used in various places
 """
 
+GLUE_NAMES = [
+    "cola",
+    "mnli",
+    "mrpc",
+    "qnli",
+    "qqp",
+    "rte",
+    "sst2",
+    "stsb",
+    "wnli",
+]
+
 TASK_NAMES = [
     "cola",
     "mnli",

@@ -191,6 +191,7 @@ def main():
             f"distributed training: {bool(training_args.local_rank != -1)}, "
             f"16-bits training: {training_args.fp16}"
         )
+
         # Set the verbosity to info of the Transformers logging (on main process only):
         if is_main_process(training_args.local_rank):
             transformers.utils.logging.set_verbosity_info()
@@ -573,12 +574,13 @@ def run_finetuning_single_task(
 
     # Code safety
     check_eval_and_max_steps(training_args, train_dataset)
+    print(f"do_eval prior to check_best_metric: {training_args.do_eval}")
     training_args = check_best_metric(training_args, data_args.task_name)
+    print(f"do_eval after check_best_metric: {training_args.do_eval}")
     check_mnli(model_args, data_args.task_name)
     # Update where model is saved for each run
     training_args = update_run_number(training_args, run_idx)
 
-    # Train
     trainer = init_trainer(
         tokenizer=tokenizer,
         data_collator=data_collator,
@@ -592,6 +594,7 @@ def run_finetuning_single_task(
     )
 
     if training_args.do_train:
+        # Train
         # Note, rm_checkpoints=True means one model will be saved
         # in the output_dir, and all checkpoint subdirectories will be
         # deleted when train() is called.
@@ -797,7 +800,9 @@ def run_finetuning_multiple_tasks(
             base_training_args.output_dir, task_name
         )
 
-        model_arg_keys = ["trainer_class", "task_hyperparams_proxy"]
+        model_arg_keys = ["trainer_class",
+                          "task_hyperparams_proxy",
+                          "model_name_or_path"]
         if task_name in model_args.task_hyperparams:
             for hp_key, hp_val in model_args.task_hyperparams[task_name].items():
                 # maybe handle proxy task here
@@ -806,6 +811,8 @@ def run_finetuning_multiple_tasks(
                 else:
                     setattr(training_args, hp_key, hp_val)
 
+        print(f"model name after hps: {model_args.model_name_or_path}")
+        print(f"do_eval prior to check_best_metric: {training_args.do_eval}")
         if data_args.task_name == "squad":
             training_args = check_best_metric(training_args, data_args.dataset_name)
             task_results = TaskResults(data_args.dataset_name, training_args)
@@ -813,7 +820,7 @@ def run_finetuning_multiple_tasks(
             training_args = check_best_metric(training_args, data_args.task_name)
             task_results = TaskResults(task_name, training_args)
         check_mnli(model_args, data_args.task_name)
-
+        print(f"do_eval prior to run_finetuning_single_task: {training_args.do_eval}")
         # Hack to ensure we don't do hp search num_runs times
         if model_args.hp_num_trials > 1:
             training_args.num_runs = 1

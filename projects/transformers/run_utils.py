@@ -1890,7 +1890,10 @@ def get_best_run_and_link_best_predictions(training_args,
     """
 
     # get the filename with predictions from the best model
-    best_run = task_results.get_model_with_best_max()
+    if not training_args.do_eval:
+        best_run = "run_0"
+    else:
+        best_run = task_results.get_model_with_best_max()
     task_path = os.path.dirname(training_args.output_dir)
     best_run_path = os.path.join(task_path, f"run_{best_run}")
 
