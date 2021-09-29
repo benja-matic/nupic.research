@@ -92,6 +92,17 @@ trifecta_80_hp_chase_mnli.update(
     task_names=["mnli"],
 )
 
+trifecta_80_hp_chase_debug = deepcopy(trifecta_80_hp_chase)
+trifecta_80_hp_chase_debug.update(
+    task_name=None,
+    task_names=["rte"],
+    do_train=True,
+    do_eva=True,
+    do_predict=True,
+    rm_checkpoints=False,
+    num_runs=2
+)
+
 # 85%
 trifecta_85_hp_chase = deepcopy(finetuning_bert_sparse_85_trifecta_100k_glue_get_info)
 trifecta_85_hp_chase = update_task_hyperparams(trifecta_85_hp_chase, "trifecta_85")
@@ -227,6 +238,7 @@ CONFIGS = dict(
     bert_100k_hp_chase_mnli=bert_100k_hp_chase_mnli,
     trifecta_80_hp_chase=trifecta_80_hp_chase,
     trifecta_80_hp_chase_mnli=trifecta_80_hp_chase_mnli,
+    trifecta_80_hp_chase_debug=trifecta_80_hp_chase_debug,
     trifecta_85_hp_chase=trifecta_85_hp_chase,
     trifecta_85_hp_chase_mnli=trifecta_85_hp_chase_mnli,
     trifecta_90_hp_chase=trifecta_90_hp_chase,
