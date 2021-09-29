@@ -123,16 +123,23 @@ def train(trainer, output_dir, rm_checkpoints, last_checkpoint=None):
 
         # Need to save the state, since Trainer.save_model saves only the tokenizer
         # with the model
-        trainer.state.save_to_json(
-            os.path.join(output_dir, "trainer_state.json")
-        )
+        trainer_state_file = os.path.join(output_dir, "trainer_state.json")
+        trainer.state.save_to_json(trainer_state_file)
 
     logging.info("After training: total params: {:,} non zero params: {:,}".format(
         *count_nonzero_params(trainer.model)
     ))
 
+    # import pdb
+    # pdb.set_trace()
+
+    # TODO
+    # just look up best checkpoint from the json file or even check if you can get it directly from trainer
     if rm_checkpoints:
-        rm_prefixed_subdirs(output_dir, "checkpoint-")
+        with open(trainer_state_file, "r") as f:
+            trainer_state = json.load(f)
+            best_checkpoint = trainer_state["best_model_checkpoint"]
+        rm_prefixed_subdirs(output_dir, "checkpoint-", skip=best_checkpoint)
 
 
 def evaluate_task(trainer, output_dir, task, eval_dataset):

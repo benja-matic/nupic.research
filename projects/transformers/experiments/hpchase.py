@@ -97,10 +97,28 @@ trifecta_80_hp_chase_debug.update(
     task_name=None,
     task_names=["rte"],
     do_train=True,
-    do_eva=True,
+    do_eval=True,
     do_predict=True,
-    rm_checkpoints=False,
-    num_runs=2
+    rm_checkpoints=True,
+    num_runs=2,
+)
+trifecta_80_hp_chase_debug["task_hyperparams"]["rte"]["eval_steps"] = \
+    trifecta_80_hp_chase_debug["task_hyperparams"]["rte"]["max_steps"] // 20
+
+
+trifecta_80_hp_chase_debug_predictions_parent_dir = deepcopy(trifecta_80_hp_chase_debug)
+trifecta_80_hp_chase_debug_predictions_parent_dir.update(
+    model_name_or_path="/home/ec2-user/nta/results/experiments/transformers/trifecta_80_hp_chase_debug/rte/run_9/",
+)
+trifecta_80_hp_chase_debug_predictions_parent_dir["task_hyperparams"]["rte"].update(
+    do_eval=False,
+    do_train=False,
+    do_predict=True
+)
+
+trifecta_80_hp_chase_debug_predictions_checkpoint_dir = deepcopy(trifecta_80_hp_chase_debug_predictions_parent_dir)
+trifecta_80_hp_chase_debug_predictions_checkpoint_dir.update(
+    model_name_or_path="/home/ec2-user/nta/results/experiments/transformers/trifecta_80_hp_chase_debug/rte/run_9/checkpoint-882"
 )
 
 # 85%
@@ -239,6 +257,8 @@ CONFIGS = dict(
     trifecta_80_hp_chase=trifecta_80_hp_chase,
     trifecta_80_hp_chase_mnli=trifecta_80_hp_chase_mnli,
     trifecta_80_hp_chase_debug=trifecta_80_hp_chase_debug,
+    trifecta_80_hp_chase_debug_predictions_parent_dir=trifecta_80_hp_chase_debug_predictions_parent_dir,
+    trifecta_80_hp_chase_debug_predictions_checkpoint_dir=trifecta_80_hp_chase_debug_predictions_checkpoint_dir,
     trifecta_85_hp_chase=trifecta_85_hp_chase,
     trifecta_85_hp_chase_mnli=trifecta_85_hp_chase_mnli,
     trifecta_90_hp_chase=trifecta_90_hp_chase,
