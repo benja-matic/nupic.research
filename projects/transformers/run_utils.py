@@ -21,6 +21,7 @@
 Auxiliary functions to run.py file
 """
 
+import json
 import logging
 import math
 import multiprocessing
@@ -130,15 +131,10 @@ def train(trainer, output_dir, rm_checkpoints, last_checkpoint=None):
         *count_nonzero_params(trainer.model)
     ))
 
-    # import pdb
-    # pdb.set_trace()
-
     # TODO
     # just look up best checkpoint from the json file or even check if you can get it directly from trainer
     if rm_checkpoints:
-        with open(trainer_state_file, "r") as f:
-            trainer_state = json.load(f)
-            best_checkpoint = trainer_state["best_model_checkpoint"]
+        best_checkpoint = os.path.basename(trainer.state.best_model_checkpoint)
         rm_prefixed_subdirs(output_dir, "checkpoint-", skip=best_checkpoint)
 
 

@@ -24,6 +24,8 @@ from copy import deepcopy
 
 import yaml
 
+from callbacks import RezeroWeightsCallback, TrackEvalMetrics
+
 # use bert_100k for task-specific hp search prototyping
 from .finetuning import finetuning_bert_100k_glue_get_info
 from .trifecta import (
@@ -102,23 +104,33 @@ trifecta_80_hp_chase_debug.update(
     rm_checkpoints=True,
     num_runs=2,
 )
-trifecta_80_hp_chase_debug["task_hyperparams"]["rte"]["eval_steps"] = \
-    trifecta_80_hp_chase_debug["task_hyperparams"]["rte"]["max_steps"] // 20
-
+trifecta_80_hp_chase_debug["task_hyperparams"]["rte"].update(
+    eval_steps=50,
+    max_steps=200,
+    num_runs=2
+)
 
 trifecta_80_hp_chase_debug_predictions_parent_dir = deepcopy(trifecta_80_hp_chase_debug)
 trifecta_80_hp_chase_debug_predictions_parent_dir.update(
-    model_name_or_path="/home/ec2-user/nta/results/experiments/transformers/trifecta_80_hp_chase_debug/rte/run_9/",
+    model_name_or_path="/home/ec2-user/nta/results/experiments/transformers/trifecta_80_hp_chase_debug/rte/run_1/",
+    trainer_callbacks=[
+        RezeroWeightsCallback(),
+    ]
 )
 trifecta_80_hp_chase_debug_predictions_parent_dir["task_hyperparams"]["rte"].update(
-    do_eval=False,
+    do_eval=True,
     do_train=False,
-    do_predict=True
+    do_predict=False,
+    num_runs=1,
 )
 
 trifecta_80_hp_chase_debug_predictions_checkpoint_dir = deepcopy(trifecta_80_hp_chase_debug_predictions_parent_dir)
 trifecta_80_hp_chase_debug_predictions_checkpoint_dir.update(
-    model_name_or_path="/home/ec2-user/nta/results/experiments/transformers/trifecta_80_hp_chase_debug/rte/run_9/checkpoint-882"
+    model_name_or_path="/home/ec2-user/nta/results/experiments/transformers/trifecta_80_hp_chase_debug/rte/run_1/checkpoint-200"
+)
+trifecta_80_hp_chase_debug_predictions_checkpoint_dir["task_hyperparams"]["rte"].update(
+    do_eval=True,
+    do_predict=False
 )
 
 # 85%
